@@ -5,3 +5,4 @@ img2pdf
 torch
 torchvision
 einops
+requests
