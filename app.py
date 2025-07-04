@@ -6,6 +6,7 @@ import time
 import img2pdf
 import requests
 from restormer_model import load_restormer_model, denoise_image
+import gc
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  
@@ -18,6 +19,7 @@ MODEL_URL = "https://huggingface.co/ndhphuc2005/restormer-checkpoint/resolve/mai
 
 def get_model(device="cpu"):
     if not hasattr(get_model, "_model"):
+        gc.collect()
         if not os.path.exists(MODEL_PATH):
             print("Downloading model checkpoint from Hugging Face...")
             r = requests.get(MODEL_URL)
