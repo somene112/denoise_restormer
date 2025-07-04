@@ -4,26 +4,27 @@ from PIL import Image
 import os
 import time
 import img2pdf
+import requests
 from restormer_model import load_restormer_model, denoise_image
-import concurrent.futures
-from io import BytesIO
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  
 
 UPLOAD_FOLDER = "static/outputs"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-device = "cpu"
-model = load_restormer_model(device=device)
+MODEL_PATH = "gaussian_color_denoising_blind.pth"
+MODEL_URL = "https://huggingface.co/ndhphuc2005/restormer-checkpoint/resolve/main/gaussian_color_denoising_blind.pth"
 
-def process_pdf_page(page, model, device, blend_factor, sharpen, filename, index, timestamp):
-    out_name = f"{filename[:-4]}_page{index+1}_denoised_{timestamp}.jpg"
-    out_path = os.path.join(UPLOAD_FOLDER, out_name)
-    page_rgb = page.convert("RGB")
-    denoised = denoise_image(page_rgb, model, device, blend_factor, sharpen=sharpen)
-    denoised.save(out_path)
-    return out_path
+def get_model(device="cpu"):
+    if not hasattr(get_model, "_model"):
+        if not os.path.exists(MODEL_PATH):
+            print("Downloading model checkpoint from Hugging Face...")
+            r = requests.get(MODEL_URL)
+            with open(MODEL_PATH, "wb") as f:
+                f.write(r.content)
+        get_model._model = load_restormer_model(pth_path=MODEL_PATH, device=device)
+    return get_model._model
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -32,24 +33,25 @@ def index():
         files = request.files.getlist("files")
         blend_factor = float(request.form.get("blend_factor", 0.7))
         sharpen = bool(request.form.get("sharpen"))
+        device = "cpu"
         for file in files:
             filename = file.filename
             timestamp = int(time.time())
             if filename.endswith(".pdf"):
-                pages = convert_from_bytes(file.read())
-                pages = pages[:3]
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    futures = [
-                        executor.submit(process_pdf_page, page, model, device, blend_factor, sharpen, filename, i, timestamp)
-                        for i, page in enumerate(pages)
-                    ]
-                    output_paths = [f.result() for f in concurrent.futures.as_completed(futures)]
+                pages = convert_from_bytes(file.read())[:3]
+                output_paths = []
+                for i, page in enumerate(pages):
+                    out_name = f"{filename[:-4]}_page{i+1}_denoised_{timestamp}.jpg"
+                    out_path = os.path.join(UPLOAD_FOLDER, out_name)
+                    page_rgb = page.convert("RGB")
+                    model = get_model(device)
+                    denoised = denoise_image(page_rgb, model, device, blend_factor, sharpen)
+                    denoised.save(out_path)
+                    output_paths.append(out_path)
                 pdf_name = f"{filename[:-4]}_denoised_{timestamp}.pdf"
                 pdf_path = os.path.join(UPLOAD_FOLDER, pdf_name)
-                pdf_bytes = img2pdf.convert(output_paths)
-                pdf_buffer = BytesIO(pdf_bytes)
                 with open(pdf_path, "wb") as f:
-                    f.write(pdf_buffer.getvalue())
+                    f.write(img2pdf.convert(output_paths))
                 results.append({"type": "pdf", "filename": pdf_name})
             elif filename.lower().endswith((".jpg", ".jpeg", ".png")):
                 img = Image.open(file.stream).convert("RGB")
@@ -58,7 +60,8 @@ def index():
                 original_path = os.path.join(UPLOAD_FOLDER, original_name)
                 output_path = os.path.join(UPLOAD_FOLDER, output_name)
                 img.save(original_path)
-                denoised = denoise_image(img, model, device, blend_factor, sharpen=sharpen)
+                model = get_model(device)
+                denoised = denoise_image(img, model, device, blend_factor, sharpen)
                 denoised.save(output_path)
                 results.append({"type": "image", "original": original_name, "denoised": output_name})
     return render_template("index.html", results=results)
