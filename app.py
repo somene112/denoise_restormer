@@ -18,13 +18,16 @@ MODEL_PATH = "gaussian_color_denoising_blind.pth"
 MODEL_URL = "https://huggingface.co/ndhphuc2005/restormer-checkpoint/resolve/main/gaussian_color_denoising_blind.pth"
 
 def get_model(device="cpu"):
+    print("🔥 get_model called")
     if not hasattr(get_model, "_model"):
+        print("📥 Model not loaded yet, checking path...")
         gc.collect()
         if not os.path.exists(MODEL_PATH):
-            print("Downloading model checkpoint from Hugging Face...")
+            print("⬇️ Downloading model...")
             r = requests.get(MODEL_URL)
             with open(MODEL_PATH, "wb") as f:
                 f.write(r.content)
+        print("📦 Loading model with torch...")
         get_model._model = load_restormer_model(pth_path=MODEL_PATH, device=device)
     return get_model._model
 
@@ -32,6 +35,7 @@ def get_model(device="cpu"):
 def index():
     results = []
     if request.method == "POST":
+        print("🟡 Received POST request")
         files = request.files.getlist("files")
         blend_factor = float(request.form.get("blend_factor", 0.7))
         sharpen = bool(request.form.get("sharpen"))
