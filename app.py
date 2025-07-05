@@ -19,7 +19,7 @@ MODEL_PATH = "gaussian_color_denoising_blind.pth"
 MODEL_URL = "https://huggingface.co/ndhphuc2005/restormer-checkpoint/resolve/main/gaussian_color_denoising_blind.pth"
 print(f"🔥 Using device: {device}")
 
-def get_model(device=device):
+def get_model(device):
     print("🔥 get_model called")
     if not hasattr(get_model, "_model"):
         print("📥 Model not loaded yet, checking path...")
