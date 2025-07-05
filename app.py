@@ -42,7 +42,6 @@ def index():
         files = request.files.getlist("files")
         blend_factor = float(request.form.get("blend_factor", 0.7))
         sharpen = bool(request.form.get("sharpen"))
-        device = device
         print(f"🔥 Using device: {device}")
         for file in files:
             filename = file.filename
