@@ -7,6 +7,8 @@ from PIL import Image,ImageFilter
 from einops import rearrange
 from torchvision import transforms
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"🔥 Using device: {device}")
 ##########################################################################
 ## Layer Norm
 
@@ -277,7 +279,7 @@ class Restormer(nn.Module):
 
         return out_dec_level1 
 
-def load_restormer_model(pth_path='gaussian_color_denoising_blind.pth', device='cpu'):
+def load_restormer_model(pth_path='gaussian_color_denoising_blind.pth', device=device):
     # First, try to load the checkpoint to inspect its structure
     ckpt = torch.load(pth_path, map_location=device)
     
@@ -308,7 +310,7 @@ def load_restormer_model(pth_path='gaussian_color_denoising_blind.pth', device='
     model.eval().to(device)
     return model
 
-def denoise_image(input_image: Image.Image, model: torch.nn.Module, device='cpu', blend_factor=0.7, sharpen=True) -> Image.Image:
+def denoise_image(input_image: Image.Image, model: torch.nn.Module, device=device, blend_factor=0.7, sharpen=True) -> Image.Image:
     """
     Denoise image with optional blending to preserve details
     
