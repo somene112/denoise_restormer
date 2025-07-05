@@ -7,17 +7,19 @@ import img2pdf
 import requests
 from restormer_model import load_restormer_model, denoise_image
 import gc
+import torch
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 UPLOAD_FOLDER = "static/outputs"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 MODEL_PATH = "gaussian_color_denoising_blind.pth"
 MODEL_URL = "https://huggingface.co/ndhphuc2005/restormer-checkpoint/resolve/main/gaussian_color_denoising_blind.pth"
+print(f"🔥 Using device: {device}")
 
-def get_model(device="cpu"):
+def get_model(device=device):
     print("🔥 get_model called")
     if not hasattr(get_model, "_model"):
         print("📥 Model not loaded yet, checking path...")
@@ -29,6 +31,7 @@ def get_model(device="cpu"):
                 f.write(r.content)
         print("📦 Loading model with torch...")
         get_model._model = load_restormer_model(pth_path=MODEL_PATH, device=device)
+        print(f"🔥 Using device: {device}")
     return get_model._model
 
 @app.route("/", methods=["GET", "POST"])
@@ -39,7 +42,8 @@ def index():
         files = request.files.getlist("files")
         blend_factor = float(request.form.get("blend_factor", 0.7))
         sharpen = bool(request.form.get("sharpen"))
-        device = "cpu"
+        device = device
+        print(f"🔥 Using device: {device}")
         for file in files:
             filename = file.filename
             timestamp = int(time.time())
